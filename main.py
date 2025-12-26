@@ -64,7 +64,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif any(text == f"{b} {i}" for i, b in ulkeler):
         kullanici_durum[uid] = True
         await update.message.reply_text(
-            "Numaranı gönder:",
+            "BUTONA BASARAK NUMARA AL:",
             reply_markup=ReplyKeyboardMarkup(
                 [[KeyboardButton("📱 Numara Al", request_contact=True)]],
                 resize_keyboard=True
