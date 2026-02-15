@@ -33,15 +33,24 @@ def menu_text(user):
     now = datetime.now(TZ).strftime("%d.%m.%Y • %H:%M")
     uname = f"@{user.username}" if user.username else user.first_name
     return f"""
-╔══════════════════════╗
-        📲 SMS ONAY
-╚══════════════════════╝
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        📲 SMS ONAY MERKEZİ
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-👤 Kullanıcı » {uname}
-🆔 ID » {user.id}
-🕒 Saat » {now}
+╭──────────── KULLANICI ────────────╮
+│ 👤 Kullanıcı : {uname}
+│ 🆔 ID        : {user.id}
+│ 🔐 Durum     : Aktif
+╰───────────────────────────────────╯
 
-Aşağıdan işlem seç
+╭───────────── SİSTEM ─────────────╮
+│ 🌍 Bölge     : Türkiye
+│ 🕒 Saat      : {now}
+│ 🟢 Sunucu    : Aktif
+│ ⚙️ Versiyon  : v3.0
+╰───────────────────────────────────╯
+
+Aşağıdan işlem seç 👇
 """
 
 def menu_buttons(uid):
@@ -75,10 +84,7 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         country = query.data.split("_",1)[1]
         DB.waiting_country[user.id] = country
         kb = [[KeyboardButton("✦ SMS ONAY ✦", request_contact=True)]]
-        await query.message.reply_text(
-            f"❖ {country} seçildi ❖\nSMS onay için butona bas",
-            reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True, one_time_keyboard=True)
-        )
+        await query.message.reply_text(f"❖ {country} seçildi\nSMS onay için butona bas", reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True, one_time_keyboard=True))
 
     elif query.data == "account":
         u = DB.users[user.id]
@@ -86,7 +92,7 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ╔═══ HESAP ═══╗
 👤 {u['username']}
 🆔 {user.id}
-📨 {u['numbers']} adet gönderim
+📨 {u['numbers']} gönderim
 ╚═════════════╝
 """)
 
