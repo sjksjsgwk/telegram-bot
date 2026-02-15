@@ -1,3 +1,7 @@
+Enterprise SMS Verify Bot
+
+python-telegram-bot v20+
+
 import os import random from datetime import datetime from zoneinfo import ZoneInfo
 
 from telegram import ( Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Contact ) from telegram.ext import ( ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, CallbackQueryHandler, filters )
