@@ -20,104 +20,91 @@ class Database:
 DB = Database()
 
 COUNTRIES = [
-    "Türkiye","Almanya","Fransa","ABD","İngiltere","Japonya","Brezilya","İtalya","İspanya","Hollanda",
-    "Kanada","Avusturya","Belçika","Norveç","İsveç","Finlandiya","Danimarka","Polonya","Romanya","Bulgaristan"
+("🇹🇷 Türkiye","Türkiye"),("🇩🇪 Almanya","Almanya"),("🇫🇷 Fransa","Fransa"),
+("🇺🇸 ABD","ABD"),("🇬🇧 İngiltere","İngiltere"),("🇯🇵 Japonya","Japonya"),
+("🇧🇷 Brezilya","Brezilya"),("🇮🇹 İtalya","İtalya"),("🇪🇸 İspanya","İspanya"),
+("🇳🇱 Hollanda","Hollanda"),("🇨🇦 Kanada","Kanada"),("🇦🇹 Avusturya","Avusturya"),
+("🇧🇪 Belçika","Belçika"),("🇳🇴 Norveç","Norveç"),("🇸🇪 İsveç","İsveç"),
+("🇫🇮 Finlandiya","Finlandiya"),("🇩🇰 Danimarka","Danimarka"),("🇵🇱 Polonya","Polonya"),
+("🇷🇴 Romanya","Romanya"),("🇧🇬 Bulgaristan","Bulgaristan")
 ]
 
-def main_menu_text(user):
+def menu_text(user):
     now = datetime.now(TZ).strftime("%d.%m.%Y • %H:%M")
-    username = f"@{user.username}" if user.username else user.first_name
+    uname = f"@{user.username}" if user.username else user.first_name
     return f"""
-✨━━━━━━━━━━━━━━━━━━━━✨
-      📲 SMS ONAY SİSTEMİ
-✨━━━━━━━━━━━━━━━━━━━━✨
+╔══════════════════════╗
+        📲 SMS ONAY
+╚══════════════════════╝
 
-👤 Kullanıcı: {username}
-🆔 ID: {user.id}
-🕒 Saat: {now}
+👤 Kullanıcı » {uname}
+🆔 ID » {user.id}
+🕒 Saat » {now}
 
-Aşağıdan işlem seçebilirsin 👇
+Aşağıdan işlem seç
 """
 
-def main_menu_buttons(uid):
+def menu_buttons(uid):
     rows = [
-        [InlineKeyboardButton("📩 SMS ONAY", callback_data="sms")],
-        [InlineKeyboardButton("👤 HESABIM", callback_data="account"),
-         InlineKeyboardButton("📊 İSTATİSTİK", callback_data="stats")],
-        [InlineKeyboardButton("🧑‍💻 GELİŞTİRİCİ", callback_data="dev"),
-         InlineKeyboardButton("🆘 DESTEK", callback_data="support")]
+        [InlineKeyboardButton("✦ SMS ONAY ✦", callback_data="sms")],
+        [InlineKeyboardButton("❖ HESABIM ❖", callback_data="account"),
+         InlineKeyboardButton("❖ İSTATİSTİK ❖", callback_data="stats")],
+        [InlineKeyboardButton("❖ GELİŞTİRİCİ ❖", callback_data="dev")]
     ]
     if uid == ADMIN_ID:
-        rows.append([InlineKeyboardButton("🔐 ADMIN PANEL", callback_data="admin")])
+        rows.append([InlineKeyboardButton("✦ ADMIN PANEL ✦", callback_data="admin")])
     return InlineKeyboardMarkup(rows)
 
-async def blocked(update: Update):
-    user = update.effective_user
-    if user and user.id in DB.banned:
-        if update.message:
-            await update.message.reply_text("⛔ Bu botu kullanamazsın.")
-        elif update.callback_query:
-            await update.callback_query.answer("Yasaklısın", show_alert=True)
-        return True
-    return False
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await blocked(update):
-        return
     user = update.effective_user
     if user.id not in DB.users:
-        DB.users[user.id] = {
-            "username": f"@{user.username}" if user.username else "Yok",
-            "numbers": 0
-        }
-    await update.message.reply_text(main_menu_text(user), reply_markup=main_menu_buttons(user.id))
+        DB.users[user.id] = {"username": f"@{user.username}" if user.username else "Yok","numbers":0}
+    await update.message.reply_text(menu_text(user), reply_markup=menu_buttons(user.id))
 
 async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await blocked(update):
-        return
-
     query = update.callback_query
     await query.answer()
     user = query.from_user
 
     if query.data == "sms":
         sample = random.sample(COUNTRIES, 10)
-        rows = [[InlineKeyboardButton(country, callback_data=f"country_{country}")] for country in sample]
-        await query.message.reply_text("🌍 Ülke seç:", reply_markup=InlineKeyboardMarkup(rows))
+        rows = [[InlineKeyboardButton(flag, callback_data=f"country_{name}")] for flag,name in sample]
+        await query.message.reply_text("✦ ÜLKE SEÇ ✦", reply_markup=InlineKeyboardMarkup(rows))
 
     elif query.data.startswith("country_"):
-        country = query.data.split("_", 1)[1]
+        country = query.data.split("_",1)[1]
         DB.waiting_country[user.id] = country
-        kb = [[KeyboardButton("📲 NUMARAMI GÖNDER", request_contact=True)]]
+        kb = [[KeyboardButton("✦ SMS ONAY ✦", request_contact=True)]]
         await query.message.reply_text(
-            f"{country} seçildi.\nNumaranı göndermek için butona bas.",
+            f"❖ {country} seçildi ❖\nSMS onay için butona bas",
             reply_markup=ReplyKeyboardMarkup(kb, resize_keyboard=True, one_time_keyboard=True)
         )
 
     elif query.data == "account":
         u = DB.users[user.id]
-        await query.message.reply_text(
-            f"👤 Kullanıcı: {u['username']}\n🆔 ID: {user.id}\n📨 Gönderim: {u['numbers']}"
-        )
+        await query.message.reply_text(f"""
+╔═══ HESAP ═══╗
+👤 {u['username']}
+🆔 {user.id}
+📨 {u['numbers']} adet gönderim
+╚═════════════╝
+""")
 
     elif query.data == "stats":
-        await query.message.reply_text(
-            f"📊 Toplam Kullanıcı: {len(DB.users)}\n📲 Toplam Numara: {DB.total_numbers}"
-        )
+        await query.message.reply_text(f"""
+╔═══ İSTATİSTİK ═══╗
+👥 Kullanıcı: {len(DB.users)}
+📲 Numara: {DB.total_numbers}
+╚══════════════════╝
+""")
 
     elif query.data == "dev":
-        await query.message.reply_text("🧑‍💻 Geliştirici: @tanrican")
-
-    elif query.data == "support":
-        await query.message.reply_text("🆘 Destek için admin ile iletişime geç.")
+        await query.message.reply_text("╔═══ GELİŞTİRİCİ ═══╗\n@tanrican\n╚══════════════════╝")
 
     elif query.data == "admin" and user.id == ADMIN_ID:
-        await query.message.reply_text("🔐 Admin Komutları:\n/ban ID\n/unban ID")
+        await query.message.reply_text("Admin komutları:\n/ban ID\n/unban ID")
 
 async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if await blocked(update):
-        return
-
     user = update.effective_user
     if user.id not in DB.waiting_country:
         return
@@ -126,48 +113,43 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     del DB.waiting_country[user.id]
 
     contact: Contact = update.message.contact
-
     DB.users[user.id]["numbers"] += 1
     DB.total_numbers += 1
 
     now = datetime.now(TZ).strftime("%d.%m.%Y %H:%M:%S")
 
-    channel_text = f"""
-📲 SMS ONAY BİLDİRİMİ
-
-🌍 Ülke: {country}
-👤 Kullanıcı: {DB.users[user.id]['username']}
-🆔 ID: {user.id}
-📱 Numara: +{contact.phone_number}
-🕒 Saat: {now}
+    msg = f"""
+╔════════ SMS ONAY ════════╗
+🌍 Ülke » {country}
+👤 Kullanıcı » {DB.users[user.id]['username']}
+🆔 ID » {user.id}
+📱 Numara » +{contact.phone_number}
+🕒 Saat » {now}
+╚══════════════════════════╝
 """
 
-    await context.bot.send_message(KANAL_ID, channel_text)
-    await update.message.reply_text("✅ Numara başarıyla alındı.")
+    await context.bot.send_message(KANAL_ID, msg)
+    await update.message.reply_text("✔ SMS Onay alındı")
 
 async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
-    uid = int(context.args[0])
-    DB.banned.add(uid)
-    await update.message.reply_text("Banlandı.")
+    DB.banned.add(int(context.args[0]))
+    await update.message.reply_text("Banlandı")
 
 async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
-    uid = int(context.args[0])
-    DB.banned.discard(uid)
-    await update.message.reply_text("Ban kaldırıldı.")
+    DB.banned.discard(int(context.args[0]))
+    await update.message.reply_text("Ban kaldırıldı")
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("ban", ban))
     app.add_handler(CommandHandler("unban", unban))
     app.add_handler(CallbackQueryHandler(callbacks))
     app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
-
     print("Bot aktif")
     app.run_polling()
 
