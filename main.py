@@ -97,7 +97,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         selected_country[user.id] = country_name
         waiting_number.add(user.id)
 
-        btn = KeyboardButton("📲 NUMARA GÖNDER", request_contact=True)
+        btn = KeyboardButton("📲 SMS ONAY")  # Buton güncellendi
         kb = ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
 
         await query.message.reply_text(f"""
@@ -106,7 +106,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ╚══════════════╝
 
 Ülke: {country_name}
-Numaranı göndererek SMS onay kodunu alabilirsin!
+🚀 Butona basarak SMS ONAY yapabilirsiniz!
 """, reply_markup=kb)
 
     elif data == "profil":
@@ -149,7 +149,7 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ╚══════════════╝
 
 Ülke: {country_name}
-🔢 Kodun: {code}
+🔢 Kodunuz: {code}
 📲 İşlem Başarılı!
 """)
 
@@ -206,4 +206,3 @@ app.add_handler(CallbackQueryHandler(menu_buttons))
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 
 app.run_polling()
-    
